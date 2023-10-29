@@ -1,0 +1,26 @@
+#include "stm32f070xb.h" 
+
+void delay(uint32_t milliseconds);
+int main(void) {
+    /* Enable the GPIOA peripheral clock*/
+  RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+
+    /* Configure Pin PA5 (connected to the onboard LED) as a general-purpose output*/
+    GPIOA->MODER |= GPIO_MODER_MODER5_0;
+
+   while (1) {
+        /* Toggle the LED on/off */ 
+        GPIOA->ODR ^= GPIO_ODR_5;
+		 
+
+        /*Delay for a while (in milliseconds)*/ 
+			delay(160);
+    } 
+	
+}
+void delay(uint32_t milliseconds) {
+    uint32_t ticks = milliseconds * 1000;
+    while (ticks--) {
+        /* Wait*/ 
+    }
+}
