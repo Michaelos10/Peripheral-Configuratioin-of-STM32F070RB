@@ -1,0 +1,77 @@
+#include "stm32f0xx_hal.h"
+#include "stm32f070xb.h"
+#include "stm32f0xx.h"
+
+
+//functions declaration
+void TIM6_IRQHandler(void);
+void TIM6_Configure(void);
+
+struct Time {
+  uint32_t ms;  // Milliseconds
+  uint32_t s;   // Seconds
+  uint32_t mins; // Minutes
+};
+
+
+// Interrupt service routine for the TIM6 update interrupt
+
+struct Time elapsedTime;
+
+void TIM6_IRQHandler(void) {
+	 TIM6->SR &= ~TIM_SR_UIF; 		// Clear the TIM6 update interrupt flag
+		elapsedTime.ms += 250;  // Add 250 milliseconds to the elapsed time
+
+if (elapsedTime.ms >= 1000) {
+    // If the milliseconds exceed or equal 1000 (1 second), update seconds.
+    elapsedTime.ms -= 1000;  // Reset milliseconds back to 0
+    elapsedTime.s++;         // Increment seconds by 1
+}
+if (elapsedTime.s >= 5) {
+    // If seconds exceed or equal 60, it's time to update minutes.
+    elapsedTime.s -= 5;    // Reset seconds back to 0
+
+}
+
+}
+
+/*void TIM6_IRQHandler(void)
+{
+	//Enable the clck and Configure the OnBoard LED as Output
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+	GPIOA->MODER |= GPIO_MODER_MODER5_0;
+  GPIOA->ODR ^= GPIO_ODR_5; 	// Blink the LED
+}*/
+
+
+void TIM6_Configure(void) {	
+	 RCC->APB1ENR |= RCC_APB1ENR_TIM6EN ;  // Enable the clock for the TIM6,TIM3 peripheral
+
+
+		
+	//Step1: TIMER
+	/* 		Counting period = (ARR register + 1) * (prescaler + 1) / input clock frequency
+				Counting period = (249 + 1) * (7999 + 1) / 8000000 Hz = 250 ms*/
+	
+	TIM6->PSC = 7999;								// Set the TIM6 prescaler TO 1MHz
+	TIM6->ARR = 0X00F9;	// Set the TIM6 compare/reload value to 250ms
+	TIM6->CR1 |= TIM_CR1_CEN;	// Start the TIM6 timer/Counter				
+			/*Calulations for 500ms
+		TIM6->PSC = 7999;							// Set the TIM6 prescaler TO 1KHz
+		TIM6->CCR1 = 0x1F3;					 // Set the TIM6 compare value to 500ms*/
+	
+	//Step2: INTERRUPT
+	TIM6->DIER |= TIM_DIER_UIE;//update TIM6 interrupt enabled
+	NVIC_EnableIRQ(TIM6_IRQn);// Enable the TIM6 interrupt in the NVIC
+	TIM6->CR1 &= ~TIM_CR1_UDIS;				// Enable the update event
+}
+
+int main(void)
+{
+		// Configure the TIM6 timer for interrupts
+  TIM6_Configure();
+  // Start the main loop
+  while (1) {
+  
+  }	
+}
