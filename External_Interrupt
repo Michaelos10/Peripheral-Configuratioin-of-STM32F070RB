@@ -1,0 +1,65 @@
+#include "stm32f0xx.h"
+
+//functions declaration
+void delay (uint32_t time);
+void interrupt_GPIO(void);
+void interrupt_Ext(void);
+void  EXTI0_1_IRQHandler (void);
+
+int flag =0;
+int count =0 ;
+
+int main(void)
+{
+	interrupt_GPIO();
+	interrupt_Ext();
+		while(1)
+	{
+		if(flag)
+		{
+			delay(1000); //Delay to handle the Bouncing effect
+			GPIOA->ODR ^= GPIO_ODR_0;
+			flag=0;
+		}
+	}
+}
+
+void interrupt_GPIO(void){
+	
+	// Enable GPIOA clock
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;			//
+	//	GPIOA->MODER |= GPIO_MODER_MODER1_0;//PA1 as OUTPUT
+	GPIOA->MODER &= ~(GPIO_MODER_MODER1); // Configure PA1 as INPUT
+	GPIOA->PUPDR |= GPIO_PUPDR_PUPDR1_0;  // Enable a pull-up resistor for Pin 1
+	//GPIOA ->PUPDR |= GPIO_MODER_MODER1; // PA1 in Pull up Mode
+	GPIOA->MODER |= GPIO_MODER_MODER0_0;//PA0 as OUTPUT
+}
+
+
+void interrupt_Ext(void){
+	RCC ->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN; //enable sysconfiguration clck
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI1_PA; // Select PA1 as the source for EXTI1
+	EXTI->IMR |= 1<<1 ;//EXTI_IMR_MR1; // Enable EXTI1 interrupt
+  EXTI->RTSR |= EXTI_RTSR_TR1; // Configure EXTI1 to trigger on a rising edge
+	
+	EXTI->FTSR &= ~(EXTI_FTSR_TR1);			//Diasable Falling EDge Trigger
+	 // Enable and set the EXTI1 interrupt in the NVIC
+	NVIC_EnableIRQ( EXTI0_1_IRQn);			//NVIC enabled
+  //NVIC_SetPriority( EXTI0_1_IRQn,0); 	//the lower the number, the higher the priority
+}
+
+
+void  EXTI0_1_IRQHandler (void){
+			flag=1;
+		// Clear the interrupt pending flag
+    if (EXTI->PR & EXTI_PR_PR1) {
+        EXTI->PR = EXTI_PR_PR1;
+    }
+}
+
+void delay (uint32_t time){
+	while(time--)
+	{}
+	
+}
+	
