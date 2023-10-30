@@ -1,0 +1,42 @@
+#include "stm32f0xx_hal.h"
+
+void SetSysClock(void);
+void SetSysClock(void)
+{
+	
+    // step1: Enable the clock sources
+  RCC->CR |= RCC_CR_HSEON;		 						// Enable the HSE clock source
+ while ((RCC->CR & RCC_CR_HSERDY) == 0);	// Wait for the HSE clock to become ready
+
+	 RCC->CR |= RCC_CR_HSION;							// Enable the HSI clock source
+	while ((RCC->CR & RCC_CR_HSIRDY)==0);  // Wait for HSI to stabilize
+
+	 RCC->CR |= RCC_CR_PLLON;							 // Enable the PLL
+  while (!(RCC->CR & RCC_CR_PLLRDY));	// Wait for the PLL to become ready
+  
+		// Step 2: Set the Flash latency (number of wait states) based on the system clock frequency
+   FLASH->ACR |= FLASH_ACR_LATENCY;  // Adjust latency according to THE clock settings
+	
+	    // Step 3: Configure and enable the PLL
+    RCC->CFGR &= ~RCC_CFGR_PLLSRC;  // Clear PLL source bits
+    RCC->CFGR |= RCC_CFGR_PLLSRC_HSI_DIV2;  // Set PLL source to HSI/2 (4MHz HSI source in this example)
+	
+	// Step 4: Set the system clock source to PLL
+	 RCC->CFGR &= ~RCC_CFGR_SW;  // Clear system clock switch bits
+    RCC->CFGR |= RCC_CFGR_SW_PLL;  // Set PLL as system clock source
+    while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);  // Wait for PLL as system clock
+	 RCC->CFGR &= ~RCC_CFGR_PLLMUL;  // Clear PLL multiplier bits
+		RCC->CFGR |= RCC_CFGR_PLLMUL2; // Set PLL multiplier to 2 To get 8MHz from PLL
+	
+    // Step 5: Configure the AHB prescalers as needed
+	 RCC->CFGR |= RCC_CFGR_HPRE_DIV1;  // AHB prescaler = 1
+}
+
+int main(void) {
+  SetSysClock();
+	while(1)
+		{
+	Blink_LED5();
+	}
+	
+}
