@@ -1,0 +1,62 @@
+#include "stm32f0xx.h"
+#include "stm32f0xx_hal_iwdg.h"
+
+//Functions Declaration
+void Clock_config(void);
+void WDT_config(void);
+
+  void Clock_config(void){	
+
+	RCC->CSR |= RCC_CSR_LSION; // ENABLE LSI
+	while(!(RCC->CSR & RCC_CSR_LSIRDY));
+  /* Enable the GPIOA peripheral clock or testing*/
+ 	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+	 
+}
+
+
+void WDT_config(void){
+			GPIOA->MODER |= GPIO_MODER_MODER5_0; /* Configure Pin PA5 (connected to the onboard LED) as a general-purpose output*/
+			IWDG->KR |=  (IWDG_KEY_ENABLE | IWDG_KEY_WRITE_ACCESS_ENABLE | IWDG_KEY_RELOAD); //
+	
+		//	Set the prescaler and reload value
+    IWDG-> PR 	= IWDG_PRESCALER_32;			 // Set prescaler to 32 to get 1kHz
+	
+							/*RL=Time(ms)*LSI)/(1000*4*2^PR)-1 
+							NOTE: PR here is the position of PR in IWDG_PRESCALER Definitions file*/
+    IWDG-> RLR 	= 0x12B; 						// Set the reload value for a timeout of 240ms (with 300 cycles)
+
+    // Enable the IWDG
+		IWDG->KR = 0xCCCC;
+}
+
+void delay(uint32_t milliseconds) {
+	
+	  uint32_t ticks = milliseconds * 400;
+    while (ticks--) {
+			 //IWDG->KR = 0xAAAA;//Refresh IWDG
+		 /* Wait*/ 
+    }
+	}
+void Blink(void){
+	
+        /* Toggle the LED on/off */ 
+        GPIOA->ODR ^= GPIO_ODR_5;
+		    /*Delay for a while (in milliseconds)*/ 
+			delay(1000);
+    
+} 
+
+
+int main (void){
+	Clock_config();
+	WDT_config();
+	while(1){
+		
+		Blink();
+		
+	}
+	
+	
+}
+
