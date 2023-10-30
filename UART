@@ -1,0 +1,158 @@
+#include "stm32f0xx.h"
+#include "stm32f0xx_hal.h"
+#include "stm32f070xb.h"
+
+uint32_t adc;
+int flag=0;
+
+void Clock_config(void);
+
+void Trigger_Timer(void);
+void TIM3_IRQHandler(void);
+
+void ADC_Config(void);
+uint32_t Get_ADC_value();
+
+        //Functions Declaration
+void UART_Init(void);
+void UART1_SendChar(uint32_t *c);
+void UART1_Send_String(char *string);
+uint8_t UART1_GetChar(void);
+void delay2(uint32_t ms);
+
+void TIM3_IRQHandler(void) {
+	flag=1;
+  TIM3->SR &= ~TIM_SR_UIF;     // Clear update interrupt flag
+}
+
+void Clock_config(void){
+	
+  RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;	 // Enable TIM3 clock
+  RCC->APB2ENR |= RCC_APB2ENR_ADCEN;	// Enable ADC clock
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN; 			//Enable the GPIO Port Clock
+	RCC->APB2ENR |= RCC_APB2ENR_USART1EN;		//enable Clock for  UART2 Communication
+}
+
+void UART_Init(void){
+	// configure USART BAUD rate
+	USART1->CR1 =0x00; 						//clear usart
+	USART1->BRR = 0x341; // Assuming a system clock of 8 MHz, baud=8MHz/9600=833.3 for Oversampling by 16 recall that BRR=USARTDIV
+	USART1->CR1 &= ~USART_CR1_M; 	//let Usart Word Length to 8bit. (SET it to get 9bit)
+	USART1->CR1 |= USART_CR1_TE | USART_CR1_RE; //Enable Uart for Tx and R 
+	USART1->CR1 |= USART_CR1_UE;	// Enable Usart
+}
+
+void UART1_SendChar(uint32_t *c){
+	
+		USART1->TDR =*c ;
+	while(!(USART1->ISR & (1<<6))); //WAit for TC to set .i.e for the data to be transmitted.
+}
+void GPIO_config(void){
+	//1: PA0 As ADC (analog) input 
+	GPIOA->MODER |= GPIO_MODER_MODER0;
+	
+	//2: configure TX and RX
+	GPIOA->MODER |= GPIO_MODER_MODER9_1 | GPIO_MODER_MODER10_1;
+	//configure alternate function
+	GPIOA->MODER 		|= 2<<18; 				//sets pa9 ad 10 as alternate Fn
+	GPIOA->MODER 		|= 2<<20;
+	GPIOA->AFR[1] 	|= 7<<4 | 7<<8;	// Alt FN for PA9 and PA10: AFR[1] = AFHR; AFR[0] = AFLR
+	GPIOA->OSPEEDR  |= 3<<18|3<<20;	// configure PA9 and PA10  to highest speed
+}
+
+
+void ADC_Config(void){
+	ADC1->CFGR1 |= ADC_CFGR1_RES_1;        // Set resolution to 12 bits
+	ADC1->CFGR1 &= ~ADC_CFGR1_ALIGN;      // Set data alignment to right
+	ADC1->CFGR1 &= ~ADC_CFGR1_CONT; 			// Disable continuous conversion mode
+	ADC1->CHSELR |= (1<<0); 				//ADC_CHSELR_CHSEL0;//select input channel 0
+	ADC1->CR |= ADC_CR_ADEN;						 //Enable ADC
+	ADC1->CR |= ADC_CR_ADSTART;					 //start conversion
+
+  while (!(ADC1->ISR & ADC_ISR_EOC));
+	//ADC1->CHSELR &= ~(1<<channel);// clear channel select register
+}
+
+uint32_t Get_ADC_value(){	
+	return  ADC1->DR; //Read ADC value
+}
+
+//void UART1_Send_String(char *string){
+//	while (*string) UART1_SendChar(*string++);
+//}
+
+ int main (void){
+	 Clock_config();
+	 GPIO_config();
+	 Trigger_Timer();
+	 
+	 UART_Init();
+	 
+	
+	while(1){
+//Tansmitted
+		if (flag==1){
+		//UART1_Send_String("Hello\n");//sends
+		ADC_Config();
+		adc = Get_ADC_value();
+		UART1_SendChar(&adc);
+			
+//Received
+//		uint8_t data= UART1_GetChar();
+//		UART1_SendChar(data);
+			flag=0;
+		}
+	
+	}
+	
+}
+
+
+
+
+void Trigger_Timer(void){
+		 // Configure TIM3 to generate interrupts every 100ms
+  TIM3->PSC = 8000 - 1; // Set prescaler to achieve 1kHz timer frequency
+  TIM3->ARR = 1000 - 1;   // Set auto-reload value for 100ms period
+  TIM3->DIER |= TIM_DIER_UIE; // Enable update interrupt
+  TIM3->CR1 |= TIM_CR1_CEN;   // Start timer
+  NVIC_EnableIRQ(TIM3_IRQn); // Enable timer interrupt in NVIC
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void TIM6_IRQHandler(void) {
+	 TIM6->SR &= ~TIM_SR_UIF; 		// Clear the TIM6 update interrupt flag
+		
+}
+
+uint8_t UART1_GetChar(void){
+	uint8_t temp;
+	while(!(USART1->ISR & (1<<5))); //WAit for RXNE bit  to set. i.e Reeption to have complete
+	temp=USART1->RDR;
+	return temp;
+		}
+
